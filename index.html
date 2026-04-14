@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CFG Simplification Tool</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --surface2: #f1efe8;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #888780;
+    --accent: #534AB7;
+    --accent-bg: #EEEDFE;
+    --accent-text: #3C3489;
+    --success: #3B6D11;
+    --success-bg: #EAF3DE;
+    --success-text: #27500A;
+    --warn: #854F0B;
+    --warn-bg: #FAEEDA;
+    --warn-text: #633806;
+    --danger: #A32D2D;
+    --danger-bg: #FCEBEB;
+    --danger-text: #791F1F;
+    --info: #185FA5;
+    --info-bg: #E6F1FB;
+    --info-text: #0C447C;
+    --teal: #0F6E56;
+    --teal-bg: #E1F5EE;
+    --teal-text: #085041;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18;
+      --surface: #2c2c2a;
+      --surface2: #222220;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --text: #f0ede6;
+      --text2: #b4b2a9;
+      --text3: #888780;
+      --accent: #AFA9EC;
+      --accent-bg: #26215C;
+      --accent-text: #CECBF6;
+      --success-bg: #173404;
+      --success-text: #C0DD97;
+      --warn-bg: #412402;
+      --warn-text: #FAC775;
+      --danger-bg: #501313;
+      --danger-text: #F7C1C1;
+      --info-bg: #042C53;
+      --info-text: #B5D4F4;
+      --teal-bg: #04342C;
+      --teal-text: #9FE1CB;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border2);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--text);
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--accent-bg);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 500; color: var(--accent-text);
+  }
+
+  .nav-tabs {
+    display: flex; gap: 2px;
+  }
+
+  .nav-tab {
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    border: none;
+    background: none;
+    color: var(--text2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .nav-tab:hover { background: var(--surface2); }
+  .nav-tab.active { background: var(--accent-bg); color: var(--accent-text); font-weight: 500; }
+
+  .main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    color: var(--text);
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+
+  .section-sub {
+    font-size: 14px;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 5px;
+  }
+
+  input[type=text], textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type=text]:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(83,74,183,0.12);
+  }
+
+  textarea { resize: vertical; min-height: 100px; line-height: 1.6; font-family: 'SF Mono', 'Fira Mono', monospace; font-size: 13px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border2);
+    background: none;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    font-family: inherit;
+  }
+
+  .btn:hover { background: var(--surface2); }
+  .btn:active { transform: scale(0.98); }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover { background: #443fa0; border-color: #443fa0; }
+
+  .btn-sm {
+    padding: 5px 12px;
+    font-size: 13px;
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+  @media (max-width: 640px) {
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+    .nav-tab { padding: 6px 10px; font-size: 12px; }
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .badge-accent { background: var(--accent-bg); color: var(--accent-text); }
+  .badge-success { background: var(--success-bg); color: var(--success-text); }
+  .badge-warn { background: var(--warn-bg); color: var(--warn-text); }
+  .badge-danger { background: var(--danger-bg); color: var(--danger-text); }
+  .badge-info { background: var(--info-bg); color: var(--info-text); }
+  .badge-teal { background: var(--teal-bg); color: var(--teal-text); }
+
+  .step-block {
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 1rem;
+    background: var(--surface);
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .step-header:hover { background: var(--surface2); }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .step-title-wrap { flex: 1; }
+  .step-title { font-size: 15px; font-weight: 500; }
+  .step-subtitle { font-size: 12px; color: var(--text3); margin-top: 1px; }
+
+  .step-chevron {
+    font-size: 12px; color: var(--text3);
+    transition: transform 0.2s;
+  }
+
+  .step-chevron.open { transform: rotate(180deg); }
+
+  .step-body {
+    display: none;
+    padding: 0 1.25rem 1.25rem;
+    border-top: 0.5px solid var(--border);
+  }
+
+  .step-body.open { display: block; }
+
+  .grammar-box {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    margin: 0.75rem 0;
+  }
+
+  .grammar-box .rule { display: block; }
+  .grammar-box .rule .removed { text-decoration: line-through; color: var(--text3); }
+  .grammar-box .rule .added { color: var(--success); font-weight: 500; }
+  .grammar-box .rule .highlighted { background: var(--warn-bg); color: var(--warn-text); border-radius: 3px; padding: 0 3px; }
+  .grammar-box .rule .nullable-mark { background: var(--info-bg); color: var(--info-text); border-radius: 3px; padding: 0 3px; }
+
+  .theory-box {
+    background: var(--info-bg);
+    border-left: 3px solid var(--info);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 0.85rem 1rem;
+    font-size: 13px;
+    color: var(--info-text);
+    margin: 0.75rem 0;
+    line-height: 1.6;
+  }
+
+  .theory-box strong { font-weight: 500; }
+
+  .example-box {
+    background: var(--accent-bg);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    font-size: 13px;
+    color: var(--accent-text);
+    margin: 0.75rem 0;
+  }
+
+  .warn-box {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 0.85rem 1rem;
+    font-size: 13px;
+    color: var(--warn-text);
+    margin: 0.75rem 0;
+  }
+
+  .success-box {
+    background: var(--success-bg);
+    border-left: 3px solid var(--success);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 0.85rem 1rem;
+    font-size: 13px;
+    color: var(--success-text);
+    margin: 0.75rem 0;
+  }
+
+  table.info-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 0.75rem 0;
+  }
+
+  table.info-table th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--text2);
+    padding: 6px 10px;
+    border-bottom: 0.5px solid var(--border2);
+  }
+
+  table.info-table td {
+    padding: 7px 10px;
+    border-bottom: 0.5px solid var(--border);
+    vertical-align: top;
+  }
+
+  table.info-table td:first-child {
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    font-weight: 500;
+  }
+
+  .set-chips {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 0.5rem 0;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    font-weight: 500;
+    border: 0.5px solid var(--border);
+  }
+
+  .chip-accent { background: var(--accent-bg); color: var(--accent-text); border-color: transparent; }
+  .chip-success { background: var(--success-bg); color: var(--success-text); border-color: transparent; }
+  .chip-danger { background: var(--danger-bg); color: var(--danger-text); border-color: transparent; }
+  .chip-info { background: var(--info-bg); color: var(--info-text); border-color: transparent; }
+  .chip-warn { background: var(--warn-bg); color: var(--warn-text); border-color: transparent; }
+  .chip-gray { background: var(--surface2); color: var(--text2); }
+
+  .divider { height: 0.5px; background: var(--border); margin: 1rem 0; }
+
+  .steps-progress {
+    display: flex;
+    gap: 0;
+    margin-bottom: 2rem;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 0.5px solid var(--border);
+  }
+
+  .prog-step {
+    flex: 1;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text3);
+    background: var(--surface);
+    border-right: 0.5px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    line-height: 1.3;
+  }
+
+  .prog-step:last-child { border-right: none; }
+  .prog-step:hover { background: var(--surface2); }
+  .prog-step.done { background: var(--success-bg); color: var(--success-text); }
+  .prog-step.active { background: var(--accent-bg); color: var(--accent-text); font-weight: 500; }
+
+  .flex-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+
+  .flex-between {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+
+  .mt1 { margin-top: 0.75rem; }
+  .mt2 { margin-top: 1.25rem; }
+  .mb1 { margin-bottom: 0.75rem; }
+
+  #error-msg {
+    background: var(--danger-bg);
+    color: var(--danger-text);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-top: 0.75rem;
+    display: none;
+  }
+
+  .concept-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    transition: border-color 0.15s;
+  }
+
+  .concept-card:hover { border-color: var(--border2); }
+
+  .concept-icon {
+    width: 36px; height: 36px;
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    margin-bottom: 0.75rem;
+  }
+
+  .concept-title { font-size: 14px; font-weight: 500; margin-bottom: 0.4rem; }
+  .concept-text { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  .algo-step {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .algo-step:last-child { border-bottom: none; }
+
+  .algo-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-bg); color: var(--accent-text);
+    font-size: 12px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+
+  .algo-content { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .algo-content strong { color: var(--text); font-weight: 500; }
+
+  .result-final {
+    background: var(--teal-bg);
+    border: 0.5px solid var(--teal);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+  }
+
+  .result-final-title {
+    font-size: 14px; font-weight: 500; color: var(--teal-text); margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  code {
+    background: var(--surface2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    font-size: 0.9em;
+  }
+
+  .tooltip-wrap { position: relative; display: inline-block; }
+  .tooltip-wrap:hover .tooltip-text { display: block; }
+  .tooltip-text {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 12px;
+    padding: 5px 9px;
+    border-radius: var(--radius);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text3);
+    font-size: 14px;
+  }
+
+  .empty-state .empty-icon { font-size: 32px; margin-bottom: 0.75rem; opacity: 0.4; }
+
+  .input-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">G</div>
+      CFG Simplifier
+    </div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" onclick="showPage('input')">Input</button>
+      <button class="nav-tab" onclick="showPage('simplify')" id="tab-simplify">Simplify</button>
+      <button class="nav-tab" onclick="showPage('theory')">Theory</button>
+    </nav>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- INPUT PAGE -->
+  <div class="page active" id="page-input">
+    <div class="section-title">Define your grammar</div>
+    <div class="section-sub">Enter the components of your context-free grammar. Use uppercase letters for non-terminals and lowercase or symbols for terminals.</div>
+
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <div class="card-title">Grammar components</div>
+
+          <label>Non-terminals (variables) — comma separated</label>
+          <input type="text" id="inp-vars" placeholder="e.g. S, A, B, C" value="S, A, B, C">
+
+          <div style="margin-top: 1rem;">
+            <label>Terminals — comma separated</label>
+            <input type="text" id="inp-terms" placeholder="e.g. a, b" value="a, b">
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <label>Start symbol</label>
+            <input type="text" id="inp-start" placeholder="e.g. S" value="S">
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <label>Production rules — one per line, format: <code>X → body</code> or <code>X -> body</code> or <code>X: body</code></label>
+            <textarea id="inp-rules" rows="8">S → AB | a
+A → BC | ε
+B → b | ε
+C → AB | c</textarea>
+          </div>
+
+          <div id="error-msg"></div>
+
+          <div class="flex-row mt2">
+            <button class="btn btn-primary" onclick="parseAndSimplify()">Simplify grammar</button>
+            <button class="btn btn-sm" onclick="loadExample('basic')">Load example 1</button>
+            <button class="btn btn-sm" onclick="loadExample('unit')">Load example 2</button>
+            <button class="btn btn-sm" onclick="clearAll()">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">Quick guide</div>
+          <div class="algo-step">
+            <div class="algo-num">1</div>
+            <div class="algo-content"><strong>Remove useless symbols</strong><br>Eliminate non-generating variables (can't derive terminals) and unreachable symbols.</div>
+          </div>
+          <div class="algo-step">
+            <div class="algo-num">2</div>
+            <div class="algo-content"><strong>Eliminate null (ε) productions</strong><br>Find nullable variables, then rewrite rules to capture all combinations without ε.</div>
+          </div>
+          <div class="algo-step">
+            <div class="algo-num">3</div>
+            <div class="algo-content"><strong>Remove unit productions</strong><br>Resolve chains like <code>A → B → c</code> by computing transitive closure.</div>
+          </div>
+          <div class="algo-step">
+            <div class="algo-num">4</div>
+            <div class="algo-content"><strong>Language equivalence</strong><br>Every step preserves the language generated by the grammar (except ε if present).</div>
+          </div>
+          <div style="margin-top: 1rem;">
+            <div class="theory-box">
+              <strong>Note on ε:</strong> If the original grammar generates the empty string, it will be noted but ε is removed from productions. Use <code>eps</code>, <code>ε</code>, or <code>λ</code> in your rules to represent the empty string.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Input preview</div>
+          <div id="preview-box" class="grammar-box" style="min-height: 80px; color: var(--text3);">
+            Fill in the form to see a preview...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIMPLIFICATION PAGE -->
+  <div class="page" id="page-simplify">
+
+    <div class="flex-between mb1">
+      <div>
+        <div class="section-title">Simplification walkthrough</div>
+        <div class="section-sub">Each step shows the transformation applied and the resulting grammar.</div>
+      </div>
+      <button class="btn btn-sm" onclick="showPage('input')">&#8592; Edit grammar</button>
+    </div>
+
+    <div class="steps-progress" id="steps-progress"></div>
+
+    <div id="simplify-content">
+      <div class="empty-state">
+        <div class="empty-icon">&#9660;</div>
+        Parse a grammar on the Input tab to begin simplification.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- THEORY PAGE -->
+  <div class="page" id="page-theory">
+    <div class="section-title">Theoretical background</div>
+    <div class="section-sub">Core concepts behind CFG simplification — essential for formal languages, automata theory, and compiler design.</div>
+
+    <div class="grid3 mb1" style="margin-bottom:1.5rem;">
+      <div class="concept-card">
+        <div class="concept-icon" style="background:var(--accent-bg);color:var(--accent-text);">&#9670;</div>
+        <div class="concept-title">Context-free grammar</div>
+        <div class="concept-text">A 4-tuple G = (V, Σ, R, S) where V = non-terminals, Σ = terminals, R = production rules, S = start symbol. Generates a context-free language (CFL).</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-icon" style="background:var(--danger-bg);color:var(--danger-text);">&#8856;</div>
+        <div class="concept-title">Useless symbols</div>
+        <div class="concept-text">A symbol is useless if it is either non-generating (cannot derive any terminal string) or unreachable (no sentential form containing it exists from S).</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-icon" style="background:var(--info-bg);color:var(--info-text);">&#120598;</div>
+        <div class="concept-title">Nullable variables</div>
+        <div class="concept-text">A variable A is nullable if A ⇒* ε. These must be identified before eliminating ε-productions to preserve the generated language.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-icon" style="background:var(--warn-bg);color:var(--warn-text);">&#8594;</div>
+        <div class="concept-title">Unit productions</div>
+        <div class="concept-text">A rule of the form A → B where A and B are both non-terminals. These create unnecessary chains that can be shortcircuited via transitive closure.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-icon" style="background:var(--success-bg);color:var(--success-text);">&#9679;</div>
+        <div class="concept-title">Generating symbols</div>
+        <div class="concept-text">A variable A is generating if A ⇒* w for some terminal string w ∈ Σ*. Computed bottom-up: terminals are trivially generating, propagate upward.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-icon" style="background:var(--teal-bg);color:var(--teal-text);">&#9672;</div>
+        <div class="concept-title">Reachable symbols</div>
+        <div class="concept-text">A symbol X is reachable if S ⇒* αXβ for some strings α, β. Computed via BFS/DFS from the start symbol through all productions.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 1 — Removing useless symbols (algorithm)</div>
+      <div class="algo-step"><div class="algo-num">1a</div><div class="algo-content"><strong>Find generating set:</strong> Initialize Gen = {all terminals}. Repeatedly add variable A to Gen if ∃ rule A → α where all symbols of α are in Gen. Repeat until no change.</div></div>
+      <div class="algo-step"><div class="algo-num">1b</div><div class="algo-content"><strong>Remove non-generating:</strong> Delete all variables not in Gen, and all rules containing them.</div></div>
+      <div class="algo-step"><div class="algo-num">1c</div><div class="algo-content"><strong>Find reachable set:</strong> Initialize Reach = {S}. For each variable in Reach, add all symbols appearing in its rule bodies. Repeat until stable.</div></div>
+      <div class="algo-step"><div class="algo-num">1d</div><div class="algo-content"><strong>Remove unreachable:</strong> Delete all variables and terminals not in Reach, along with their rules.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 2 — Eliminating ε-productions (algorithm)</div>
+      <div class="algo-step"><div class="algo-num">2a</div><div class="algo-content"><strong>Find nullable set:</strong> Initialize Null = {A | A → ε ∈ R}. Then repeatedly add A if ∃ A → B₁B₂…Bₖ where every Bᵢ ∈ Null. Repeat until stable.</div></div>
+      <div class="algo-step"><div class="algo-num">2b</div><div class="algo-content"><strong>Rewrite rules:</strong> For each rule A → α, generate all versions of α obtained by optionally omitting each nullable symbol in α (excluding the all-omit case which produces ε, unless A is the start).</div></div>
+      <div class="algo-step"><div class="algo-num">2c</div><div class="algo-content"><strong>Remove ε rules:</strong> Delete all rules of the form A → ε (except S → ε if ε was in the original language).</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 3 — Removing unit productions (algorithm)</div>
+      <div class="algo-step"><div class="algo-num">3a</div><div class="algo-content"><strong>Compute unit pairs:</strong> For each variable A, find all B such that A ⇒* B using only unit productions (A = B is included). This is the transitive closure of the unit relation.</div></div>
+      <div class="algo-step"><div class="algo-num">3b</div><div class="algo-content"><strong>Build new rule set:</strong> For each unit pair (A, B) and each non-unit rule B → α, add A → α to the new grammar.</div></div>
+      <div class="algo-step"><div class="algo-num">3c</div><div class="algo-content"><strong>Remove unit rules:</strong> Delete all original unit productions A → B. Keep only the new expanded rule set.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Language equivalence</div>
+      <div class="theory-box">
+        <strong>Theorem:</strong> Let G be a CFG. Then there exists a CFG G' with no useless symbols, no ε-productions (except S → ε if ε ∈ L(G)), and no unit productions such that L(G') = L(G) \ {ε} (or L(G') = L(G) if ε ∉ L(G)).
+      </div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-top:0.75rem;">
+        Each simplification step is a conservative transformation — it only removes redundant or problematic rules while introducing equivalent alternatives. The proof uses induction on derivation length to show that every string in L(G) has a corresponding derivation in G' and vice versa.
+      </p>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ─── Page navigation ────────────────────────────────────────────────────────
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    const tabs = document.querySelectorAll('.nav-tab');
+    const order = ['input', 'simplify', 'theory'];
+    tabs[order.indexOf(id)].classList.add('active');
+  }
+
+  // ─── Live preview ────────────────────────────────────────────────────────────
+  ['inp-vars','inp-terms','inp-start','inp-rules'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updatePreview);
+  });
+
+  function updatePreview() {
+    const rules = document.getElementById('inp-rules').value.trim().split('\n');
+    const start = document.getElementById('inp-start').value.trim();
+    const vars = document.getElementById('inp-vars').value.trim();
+    const terms = document.getElementById('inp-terms').value.trim();
+    const box = document.getElementById('preview-box');
+    if (!rules[0] && !start) { box.innerHTML = '<span style="color:var(--text3)">Fill in the form…</span>'; return; }
+    let html = `<span style="color:var(--text3);font-size:12px">V = {${vars}} &nbsp; Σ = {${terms}} &nbsp; S = ${start}</span>\n`;
+    rules.forEach(r => {
+      if (r.trim()) html += `<span class="rule">${escHtml(r.trim())}</span>\n`;
+    });
+    box.innerHTML = html;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ─── Examples ────────────────────────────────────────────────────────────────
+  function loadExample(t) {
+    if (t === 'basic') {
+      document.getElementById('inp-vars').value = 'S, A, B, C';
+      document.getElementById('inp-terms').value = 'a, b';
+      document.getElementById('inp-start').value = 'S';
+      document.getElementById('inp-rules').value = 'S → AB | a\nA → BC | ε\nB → b | ε\nC → AB | c';
+    } else {
+      document.getElementById('inp-vars').value = 'S, A, B, C, D';
+      document.getElementById('inp-terms').value = 'a, b, c';
+      document.getElementById('inp-start').value = 'S';
+      document.getElementById('inp-rules').value = 'S → A | B | a\nA → B | b\nB → C | c\nC → a\nD → c';
+    }
+    updatePreview();
+  }
+
+  function clearAll() {
+    ['inp-vars','inp-terms','inp-start','inp-rules'].forEach(id => document.getElementById(id).value = '');
+    updatePreview();
+  }
+
+  // ─── Parser ──────────────────────────────────────────────────────────────────
+  function parseGrammar() {
+    const varsRaw = document.getElementById('inp-vars').value.trim();
+    const termsRaw = document.getElementById('inp-terms').value.trim();
+    const start = document.getElementById('inp-start').value.trim();
+    const rulesRaw = document.getElementById('inp-rules').value.trim();
+
+    const vars = varsRaw.split(',').map(s => s.trim()).filter(Boolean);
+    const terms = termsRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+    if (!vars.length) throw new Error('Please enter at least one non-terminal variable.');
+    if (!start) throw new Error('Please enter a start symbol.');
+    if (!vars.includes(start)) throw new Error(`Start symbol "${start}" must be in the non-terminals set.`);
+    if (!rulesRaw) throw new Error('Please enter at least one production rule.');
+
+    const rules = []; // [{head: str, body: [str]} ]
+    const lines = rulesRaw.split('\n').filter(l => l.trim());
+
+    for (const line of lines) {
+      const sep = line.includes('→') ? '→' : line.includes('->') ? '->' : line.includes(':') ? ':' : null;
+      if (!sep) throw new Error(`Cannot parse rule: "${line}". Use → or -> or :`);
+      const [head, bodyStr] = line.split(sep).map(s => s.trim());
+      if (!head || !bodyStr) throw new Error(`Malformed rule: "${line}"`);
+      if (!vars.includes(head)) throw new Error(`Rule head "${head}" is not in non-terminals set.`);
+      const alternatives = bodyStr.split('|').map(s => s.trim());
+      for (const alt of alternatives) {
+        // tokenize: match variables first (by name), then terminals, then eps
+        const body = tokenizeBody(alt, vars, terms);
+        rules.push({ head, body });
+      }
+    }
+
+    return { vars: [...vars], terms: [...terms], start, rules };
+  }
+
+  function tokenizeBody(bodyStr, vars, terms) {
+    const s = bodyStr.trim();
+    if (!s || s === 'ε' || s === 'eps' || s === 'λ' || s === 'epsilon') return ['ε'];
+    // Sort vars by length desc to handle multi-char names
+    const sorted = [...vars].sort((a,b) => b.length - a.length);
+    let tokens = [];
+    let i = 0;
+    while (i < s.length) {
+      if (s[i] === ' ') { i++; continue; }
+      let matched = false;
+      for (const v of sorted) {
+        if (s.startsWith(v, i)) {
+          tokens.push(v);
+          i += v.length;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        // try terminals
+        let tMatched = false;
+        const sortedT = [...terms].sort((a,b) => b.length - a.length);
+        for (const t of sortedT) {
+          if (s.startsWith(t, i)) {
+            tokens.push(t);
+            i += t.length;
+            tMatched = true;
+            break;
+          }
+        }
+        if (!tMatched) {
+          // treat single char as terminal
+          tokens.push(s[i]);
+          i++;
+        }
+      }
+    }
+    return tokens.length ? tokens : ['ε'];
+  }
+
+  // ─── Simplification Engine ────────────────────────────────────────────────────
+
+  function cloneGrammar(g) {
+    return {
+      vars: [...g.vars],
+      terms: [...g.terms],
+      start: g.start,
+      rules: g.rules.map(r => ({ head: r.head, body: [...r.body] }))
+    };
+  }
+
+  function ruleStr(r) {
+    return r.head + ' → ' + r.body.join('');
+  }
+
+  function grammarToLines(g) {
+    const grouped = {};
+    g.vars.forEach(v => grouped[v] = []);
+    g.rules.forEach(r => {
+      if (grouped[r.head] !== undefined) grouped[r.head].push(r.body.join(''));
+    });
+    return g.vars.map(v => `${v} → ${grouped[v].length ? grouped[v].join(' | ') : '∅'}`);
+  }
+
+  // Step 1a: Find generating variables
+  function findGenerating(g) {
+    const gen = new Set(g.terms);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const r of g.rules) {
+        if (!gen.has(r.head) && r.body.every(s => gen.has(s) || s === 'ε')) {
+          gen.add(r.head);
+          changed = true;
+        }
+      }
+    }
+    return gen;
+  }
+
+  // Step 1b: Find reachable symbols from start
+  function findReachable(g) {
+    const reach = new Set([g.start]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const r of g.rules) {
+        if (reach.has(r.head)) {
+          for (const s of r.body) {
+            if (!reach.has(s)) { reach.add(s); changed = true; }
+          }
+        }
+      }
+    }
+    return reach;
+  }
+
+  // Step 2: Find nullable variables
+  function findNullable(g) {
+    const nullable = new Set();
+    g.rules.forEach(r => { if (r.body.length === 1 && r.body[0] === 'ε') nullable.add(r.head); });
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const r of g.rules) {
+        if (!nullable.has(r.head) && r.body.every(s => nullable.has(s))) {
+          nullable.add(r.head);
+          changed = true;
+        }
+      }
+    }
+    return nullable;
+  }
+
+  // Generate all subsets of indices where nullable symbols appear
+  function generateNullableCombinations(body, nullable) {
+    const positions = body.map((s, i) => nullable.has(s) ? i : -1).filter(i => i >= 0);
+    const results = new Set();
+    for (let mask = 0; mask < (1 << positions.length); mask++) {
+      const omit = new Set();
+      positions.forEach((pos, bi) => { if (mask & (1 << bi)) omit.add(pos); });
+      const newBody = body.filter((_, i) => !omit.has(i));
+      if (newBody.length > 0) results.add(newBody.join('\x00'));
+    }
+    return [...results].map(s => s.split('\x00').filter(Boolean));
+  }
+
+  // Find unit pairs: all (A,B) where A =>* B via unit productions
+  function findUnitPairs(g) {
+    const pairs = new Set(g.vars.map(v => v + '|' + v)); // reflexive
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const r of g.rules) {
+        if (r.body.length === 1 && g.vars.includes(r.body[0])) {
+          // A → B: add (A, C) for all (B, C)
+          for (const p of pairs) {
+            const [x, y] = p.split('|');
+            if (x === r.body[0]) {
+              const newPair = r.head + '|' + y;
+              if (!pairs.has(newPair)) { pairs.add(newPair); changed = true; }
+            }
+          }
+        }
+      }
+    }
+    return [...pairs].map(p => { const [a,b] = p.split('|'); return [a,b]; });
+  }
+
+  // ─── Full simplification pipeline ───────────────────────────────────────────
+
+  function simplify(g) {
+    const steps = [];
+    let curr = cloneGrammar(g);
+    const epsilonInOriginal = curr.rules.some(r => r.body.length === 1 && r.body[0] === 'ε' && r.head === curr.start);
+
+    // ── Step 1: Remove useless symbols ──────────────────────────────────────
+    const gen = findGenerating(curr);
+    const nonGen = curr.vars.filter(v => !gen.has(v));
+    const genRulesRemoved = curr.rules.filter(r => !gen.has(r.head) || r.body.some(s => curr.vars.includes(s) && !gen.has(s)));
+    curr.vars = curr.vars.filter(v => gen.has(v));
+    curr.rules = curr.rules.filter(r => gen.has(r.head) && r.body.every(s => !curr.vars.includes(s) || gen.has(s)));
+
+    const reach = findReachable(curr);
+    const nonReach = curr.vars.filter(v => !reach.has(v));
+    curr.vars = curr.vars.filter(v => reach.has(v));
+    curr.terms = curr.terms.filter(t => reach.has(t));
+    curr.rules = curr.rules.filter(r => reach.has(r.head) && r.body.every(s => reach.has(s) || s === 'ε'));
+
+    steps.push({
+      title: 'Remove useless symbols',
+      subtitle: 'Non-generating & unreachable symbols',
+      color: 'danger',
+      grammar: cloneGrammar(curr),
+      details: {
+        generating: [...gen].filter(s => g.vars.includes(s)),
+        nonGenerating: nonGen,
+        reachable: [...reach].filter(s => g.vars.includes(s)),
+        nonReachable: nonReach,
+        rulesRemoved: genRulesRemoved
+      }
+    });
+
+    // ── Step 2: Remove ε-productions ────────────────────────────────────────
+    const nullable = findNullable(curr);
+    const preEpsGrammar = cloneGrammar(curr);
+    const newRules = [];
+    const addedRules = [];
+
+    for (const r of curr.rules) {
+      if (r.body.length === 1 && r.body[0] === 'ε') continue;
+      const combos = generateNullableCombinations(r.body, nullable);
+      for (const combo of combos) {
+        if (combo.length === 0) continue; // skip generating ε
+        const key = r.head + '|' + combo.join('\x00');
+        if (!newRules.some(nr => nr.head === r.head && nr.body.join('\x00') === combo.join('\x00'))) {
+          newRules.push({ head: r.head, body: combo });
+          if (combo.join('') !== r.body.join('')) {
+            addedRules.push({ head: r.head, body: combo, from: r });
+          }
+        }
+      }
+    }
+
+    curr.rules = newRules;
+    steps.push({
+      title: 'Eliminate ε-productions',
+      subtitle: 'Nullable variables & rule expansion',
+      color: 'info',
+      grammar: cloneGrammar(curr),
+      details: {
+        nullable: [...nullable],
+        addedRules,
+        epsilonInOriginal
+      }
+    });
+
+    // ── Step 3: Remove unit productions ─────────────────────────────────────
+    const unitPairs = findUnitPairs(curr);
+    const preUnitGrammar = cloneGrammar(curr);
+    const unitRules = curr.rules.filter(r => r.body.length === 1 && curr.vars.includes(r.body[0]));
+    const nonUnitRules = curr.rules.filter(r => !(r.body.length === 1 && curr.vars.includes(r.body[0])));
+    const newUnitRules = [];
+
+    for (const [a, b] of unitPairs) {
+      for (const r of nonUnitRules) {
+        if (r.head === b) {
+          const exists = newUnitRules.some(nr => nr.head === a && nr.body.join('\x00') === r.body.join('\x00'))
+            || nonUnitRules.some(nr => nr.head === a && nr.body.join('\x00') === r.body.join('\x00'));
+          if (!exists && a !== b) {
+            newUnitRules.push({ head: a, body: [...r.body] });
+          }
+        }
+      }
+    }
+
+    curr.rules = [...nonUnitRules, ...newUnitRules];
+    // Deduplicate
+    const seen = new Set();
+    curr.rules = curr.rules.filter(r => {
+      const k = r.head + '|' + r.body.join('\x00');
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    // Remove vars with no rules
+    const activeVars = new Set(curr.rules.map(r => r.head));
+    activeVars.add(curr.start);
+    curr.vars = curr.vars.filter(v => activeVars.has(v));
+
+    steps.push({
+      title: 'Remove unit productions',
+      subtitle: 'Transitive closure of unit pairs',
+      color: 'warn',
+      grammar: cloneGrammar(curr),
+      details: {
+        unitPairs,
+        unitRules,
+        addedByUnit: newUnitRules
+      }
+    });
+
+    // ── Final cleanup: remove unreachable again ─────────────────────────────
+    const finalReach = findReachable(curr);
+    curr.vars = curr.vars.filter(v => finalReach.has(v));
+    curr.rules = curr.rules.filter(r => finalReach.has(r.head));
+
+    return { steps, final: curr, epsilonInOriginal };
+  }
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
+
+  function colorClass(c) {
+    const map = { danger: ['danger-bg','danger-text'], info: ['info-bg','info-text'], warn: ['warn-bg','warn-text'], success: ['success-bg','success-text'], accent: ['accent-bg','accent-text'] };
+    return map[c] || map.accent;
+  }
+
+  function renderGrammarLines(g, highlights) {
+    highlights = highlights || {};
+    const grouped = {};
+    g.vars.forEach(v => grouped[v] = []);
+    g.rules.forEach(r => {
+      if (grouped[r.head] !== undefined) grouped[r.head].push(r.body.join(''));
+    });
+    let html = '';
+    for (const v of g.vars) {
+      const alts = grouped[v];
+      let line = `<span style="color:var(--accent-text);font-weight:500">${v}</span> → `;
+      if (!alts.length) { line += '<span style="color:var(--text3)">∅</span>'; }
+      else {
+        line += alts.map((a, i) => {
+          const key = v + '|' + a;
+          if (highlights[key] === 'added') return `<span class="added">${escHtml(a)}</span>`;
+          if (highlights[key] === 'removed') return `<span class="removed">${escHtml(a)}</span>`;
+          if (highlights[key] === 'highlight') return `<span class="highlighted">${escHtml(a)}</span>`;
+          return escHtml(a);
+        }).join(' | ');
+      }
+      html += `<span class="rule">${line}</span>\n`;
+    }
+    return html;
+  }
+
+  function renderStepBlock(step, idx, orig) {
+    const [bg, fg] = colorClass(step.color);
+    const numBg = `var(--${bg})`;
+    const numFg = `var(--${fg})`;
+
+    const highlights = {};
+    if (step.details.addedRules) {
+      step.details.addedRules.forEach(r => highlights[r.head + '|' + r.body.join('')] = 'added');
+    }
+    if (step.details.addedByUnit) {
+      step.details.addedByUnit.forEach(r => highlights[r.head + '|' + r.body.join('')] = 'added');
+    }
+
+    let detailHtml = '';
+
+    if (idx === 0) {
+      const d = step.details;
+      detailHtml += `<p style="font-size:13px;color:var(--text2);margin-bottom:0.75rem">A symbol is <em>useless</em> if it cannot contribute to any terminal derivation from S.</p>`;
+
+      detailHtml += `<div style="margin-bottom:0.75rem"><span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Generating variables</span><div class="set-chips" style="margin-top:5px">`;
+      d.generating.forEach(v => detailHtml += `<span class="chip chip-success">${v}</span>`);
+      if (!d.generating.length) detailHtml += `<span style="font-size:13px;color:var(--text3)">none</span>`;
+      detailHtml += `</div></div>`;
+
+      if (d.nonGenerating.length) {
+        detailHtml += `<div class="warn-box">Non-generating variables removed: ${d.nonGenerating.map(v=>`<code>${v}</code>`).join(', ')}</div>`;
+      } else {
+        detailHtml += `<div class="success-box">All variables are generating — no removals needed.</div>`;
+      }
+
+      detailHtml += `<div style="margin:0.75rem 0"><span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Reachable symbols</span><div class="set-chips" style="margin-top:5px">`;
+      d.reachable.forEach(v => detailHtml += `<span class="chip chip-accent">${v}</span>`);
+      detailHtml += `</div></div>`;
+
+      if (d.nonReachable.length) {
+        detailHtml += `<div class="warn-box">Unreachable variables removed: ${d.nonReachable.map(v=>`<code>${v}</code>`).join(', ')}</div>`;
+      } else {
+        detailHtml += `<div class="success-box">All remaining variables are reachable from S.</div>`;
+      }
+    }
+
+    if (idx === 1) {
+      const d = step.details;
+      detailHtml += `<p style="font-size:13px;color:var(--text2);margin-bottom:0.75rem">A variable is <em>nullable</em> if it can derive ε. All rules containing nullable variables are expanded into multiple versions.</p>`;
+
+      detailHtml += `<div style="margin-bottom:0.75rem"><span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Nullable variables</span><div class="set-chips" style="margin-top:5px">`;
+      if (d.nullable.length) {
+        d.nullable.forEach(v => detailHtml += `<span class="chip chip-info">${v}</span>`);
+      } else {
+        detailHtml += `<span style="font-size:13px;color:var(--text3)">none — no ε-productions found</span>`;
+      }
+      detailHtml += `</div></div>`;
+
+      if (d.addedRules && d.addedRules.length) {
+        detailHtml += `<div style="margin-bottom:0.75rem"><span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">New rules generated</span><table class="info-table" style="margin-top:6px"><thead><tr><th>New rule</th><th>Derived from</th></tr></thead><tbody>`;
+        d.addedRules.forEach(r => {
+          detailHtml += `<tr><td>${r.head} → ${r.body.join('')}</td><td style="color:var(--text2);font-family:inherit">${r.from.head} → ${r.from.body.join('')} <span style="color:var(--text3)">(nullable symbols omitted)</span></td></tr>`;
+        });
+        detailHtml += `</tbody></table></div>`;
+      } else {
+        detailHtml += `<div class="success-box">No new rules needed — no nullable variables in this grammar.</div>`;
+      }
+
+      if (d.epsilonInOriginal) {
+        detailHtml += `<div class="warn-box">The original grammar generates ε. The simplified grammar omits ε, but this is noted — L(G') = L(G) \\ {ε}.</div>`;
+      }
+    }
+
+    if (idx === 2) {
+      const d = step.details;
+      detailHtml += `<p style="font-size:13px;color:var(--text2);margin-bottom:0.75rem">Unit productions <code>A → B</code> are shortcircuited using the transitive closure of the unit relation.</p>`;
+
+      if (d.unitRules.length) {
+        detailHtml += `<div style="margin-bottom:0.75rem"><span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Unit productions removed</span><div class="set-chips" style="margin-top:5px">`;
+        d.unitRules.forEach(r => detailHtml += `<span class="chip chip-warn">${r.head} → ${r.body.join('')}</span>`);
+        detailHtml += `</div></div>`;
+      } else {
+        detailHtml += `<div class="success-box">No unit productions found — this step makes no changes.</div>`;
+      }
+
+      if (d.unitPairs && d.unitPairs.length) {
+        const nonTrivial = d.unitPairs.filter(([a,b]) => a !== b);
+        if (nonTrivial.length) {
+          detailHtml += `<div style="margin-bottom:0.75rem"><span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Unit pairs (A ⇒* B)</span><div class="set-chips" style="margin-top:5px">`;
+          nonTrivial.forEach(([a,b]) => detailHtml += `<span class="chip chip-accent">(${a}, ${b})</span>`);
+          detailHtml += `</div></div>`;
+        }
+      }
+
+      if (d.addedByUnit && d.addedByUnit.length) {
+        detailHtml += `<div style="margin-bottom:0.75rem"><span style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Rules added via unit expansion</span><div class="set-chips" style="margin-top:5px">`;
+        d.addedByUnit.forEach(r => detailHtml += `<span class="chip chip-success">${r.head} → ${r.body.join('')}</span>`);
+        detailHtml += `</div></div>`;
+      }
+    }
+
+    return `
+      <div class="step-block">
+        <div class="step-header" onclick="toggleStep(${idx})">
+          <div class="step-num" style="background:${numBg};color:${numFg}">${idx+1}</div>
+          <div class="step-title-wrap">
+            <div class="step-title">${step.title}</div>
+            <div class="step-subtitle">${step.subtitle}</div>
+          </div>
+          <div class="step-chevron open" id="chev-${idx}">&#9660;</div>
+        </div>
+        <div class="step-body open" id="body-${idx}">
+          ${detailHtml}
+          <div class="divider"></div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em">Grammar after this step</div>
+          <div class="grammar-box">${renderGrammarLines(step.grammar, highlights)}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function toggleStep(idx) {
+    const body = document.getElementById('body-' + idx);
+    const chev = document.getElementById('chev-' + idx);
+    body.classList.toggle('open');
+    chev.classList.toggle('open');
+  }
+
+  function parseAndSimplify() {
+    const errEl = document.getElementById('error-msg');
+    errEl.style.display = 'none';
+
+    let g;
+    try { g = parseGrammar(); }
+    catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; return; }
+
+    let result;
+    try { result = simplify(g); }
+    catch(e) { errEl.textContent = 'Simplification error: ' + e.message; errEl.style.display = 'block'; return; }
+
+    renderResults(g, result);
+    showPage('simplify');
+  }
+
+  function renderResults(orig, result) {
+    const { steps, final, epsilonInOriginal } = result;
+
+    // Progress bar
+    const progEl = document.getElementById('steps-progress');
+    progEl.innerHTML = ['Original', ...steps.map(s => s.title), 'Final result']
+      .map((label, i) => `<div class="prog-step ${i > 0 && i <= steps.length ? 'done' : i === steps.length + 1 ? 'done' : ''}" onclick="scrollToSection(${i})">${label}</div>`)
+      .join('');
+
+    // Content
+    let html = '';
+
+    // Original grammar
+    html += `
+      <div class="card" id="section-0">
+        <div class="flex-between mb1">
+          <div class="card-title" style="margin-bottom:0">Original grammar</div>
+          <span class="badge badge-accent">Input</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:0.75rem">
+          V = {${orig.vars.join(', ')}} &nbsp;|&nbsp; Σ = {${orig.terms.join(', ')}} &nbsp;|&nbsp; S = ${orig.start}
+        </div>
+        <div class="grammar-box">${renderGrammarLines(orig)}</div>
+      </div>
+    `;
+
+    // Steps
+    steps.forEach((step, i) => {
+      html += `<div id="section-${i+1}">` + renderStepBlock(step, i, orig) + '</div>';
+    });
+
+    // Final result
+    html += `
+      <div class="result-final" id="section-${steps.length+1}">
+        <div class="result-final-title">
+          <span>&#10003;</span> Simplified grammar (final result)
+        </div>
+        <div style="font-size:13px;color:var(--teal-text);margin-bottom:0.75rem">
+          V = {${final.vars.join(', ')}} &nbsp;|&nbsp; Σ = {${final.terms.join(', ')}} &nbsp;|&nbsp; S = ${final.start}
+          ${epsilonInOriginal ? '&nbsp;|&nbsp; <em>Note: ε was in L(G)</em>' : ''}
+        </div>
+        <div class="grammar-box" style="background:var(--teal-bg);border-color:var(--teal)">${renderGrammarLines(final)}</div>
+        <div style="font-size:13px;color:var(--teal-text);margin-top:0.75rem">
+          Language equivalence: L(G') = L(G)${epsilonInOriginal ? ' \\ {ε}' : ''}. All simplification steps preserve language membership.
+        </div>
+      </div>
+    `;
+
+    document.getElementById('simplify-content').innerHTML = html;
+  }
+
+  function scrollToSection(i) {
+    const el = document.getElementById('section-' + i);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Init preview
+  updatePreview();
+</script>
+</body>
+</html>
